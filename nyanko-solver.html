@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#b794f6">
+<title>ねこスライド ソルバー</title>
+<style>
+  :root{
+    --bg:#b8a3e8;
+    --bg-2:#a98fe0;
+    --floor:#d98a63;
+    --floor-edge:#c2724d;
+    --hole:#b39ae8;
+    --cat:#f5c518;
+    --ink:#2b2342;
+    --ink-soft:#5b4f7a;
+    --paper:#f4eefb;
+    --line:#8a7bb8;
+    --accent:#ff7a45;
+    --good:#3fae7a;
+    --bad:#e0594d;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:radial-gradient(circle at 30% 0%, var(--bg) 0%, var(--bg-2) 100%);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
+    min-height:100vh;
+    padding:18px 16px 60px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:520px;margin:0 auto;}
+
+  header{margin:6px 2px 18px;}
+  .title{
+    font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1.05;
+    display:flex;align-items:center;gap:10px;
+  }
+  .title .glyph{
+    width:38px;height:38px;border-radius:9px;background:var(--cat);
+    position:relative;flex:none;box-shadow:0 2px 0 #c99a0e;
+  }
+  .title .glyph::before,.title .glyph::after{
+    content:"";position:absolute;top:9px;width:6px;height:11px;background:var(--ink);border-radius:2px;
+  }
+  .title .glyph::before{left:9px;} .title .glyph::after{right:9px;}
+  .sub{margin:8px 2px 0;color:var(--ink-soft);font-size:14px;line-height:1.5;}
+
+  .card{
+    background:var(--paper);
+    border-radius:18px;
+    padding:16px;
+    margin-top:16px;
+    box-shadow:0 6px 22px rgba(43,35,66,.14);
+  }
+
+  .drop{
+    border:2.5px dashed var(--line);
+    border-radius:14px;
+    padding:30px 18px;
+    text-align:center;
+    color:var(--ink-soft);
+    font-size:15px;
+    line-height:1.6;
+    transition:border-color .15s, background .15s;
+  }
+  .drop.hot{border-color:var(--accent);background:rgba(255,122,69,.07);}
+  .drop b{color:var(--ink);}
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    background:var(--ink);color:#fff;border:none;border-radius:11px;
+    padding:13px 18px;font-size:15px;font-weight:700;cursor:pointer;
+    width:100%;margin-top:12px;
+  }
+  .btn:active{transform:translateY(1px);}
+  .btn.ghost{background:transparent;color:var(--ink);border:2px solid var(--line);}
+  .btn.accent{background:var(--accent);box-shadow:0 3px 0 #d8612f;}
+  .btn:disabled{opacity:.45;}
+  input[type=file]{display:none;}
+
+  .status{margin-top:12px;font-size:14px;color:var(--ink-soft);min-height:20px;line-height:1.5;}
+  .status.err{color:var(--bad);}
+  .status.ok{color:var(--good);}
+
+  /* editable board */
+  .boardwrap{margin-top:14px;display:none;}
+  .board{
+    display:grid;gap:3px;width:100%;
+    background:var(--floor-edge);padding:6px;border-radius:12px;
+    touch-action:manipulation;
+  }
+  .cell{
+    aspect-ratio:1/1;border-radius:5px;position:relative;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    font-size:11px;font-weight:700;color:rgba(255,255,255,.5);
+    user-select:none;
+  }
+  .cell.floor{background:linear-gradient(160deg,var(--floor),#cf7d56);}
+  .cell.hole{background:var(--hole);color:rgba(43,35,66,.35);}
+  .cell.cat{background:var(--cat);box-shadow:inset 0 0 0 2px #c99a0e;}
+  .cell.cat::before,.cell.cat::after{
+    content:"";position:absolute;bottom:24%;width:14%;height:26%;background:var(--ink);border-radius:2px;
+  }
+  .cell.cat::before{left:24%;} .cell.cat::after{right:24%;}
+  .cell.path{outline:3px solid var(--accent);outline-offset:-3px;}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:13px;color:var(--ink-soft);}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .sw{width:15px;height:15px;border-radius:4px;display:inline-block;}
+  .hint{margin-top:8px;font-size:13px;color:var(--ink-soft);line-height:1.5;}
+
+  /* solution */
+  .solution{display:none;margin-top:16px;}
+  .steps{
+    display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;
+  }
+  .step{
+    width:48px;height:48px;border-radius:11px;background:var(--ink);color:#fff;
+    display:flex;align-items:center;justify-content:center;flex-direction:column;
+    font-size:22px;line-height:1;position:relative;
+  }
+  .step .n{position:absolute;top:3px;left:5px;font-size:9px;opacity:.6;}
+  .arrowtext{margin-top:12px;font-size:15px;line-height:1.9;word-break:break-all;}
+  .arrowtext b{font-size:19px;}
+
+  .row{display:flex;gap:10px;margin-top:12px;}
+  .row .btn{margin-top:0;}
+
+  details{margin-top:14px;font-size:13px;color:var(--ink-soft);}
+  summary{cursor:pointer;font-weight:700;color:var(--ink);}
+  details p{line-height:1.6;}
+  canvas{display:none;}
+  .preview{margin-top:12px;border-radius:10px;width:100%;display:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="title"><span class="glyph"></span>ねこスライド ソルバー</div>
+    <p class="sub">パズルのスクショを送るだけ。グリッドと障害物を自動で読み取って、猫を動かす順番を出します。手書きの線や印は要りません。</p>
+  </header>
+
+  <div class="card">
+    <label class="drop" id="drop">
+      <input type="file" id="file" accept="image/*">
+      <b>スクショを選ぶ</b><br>タップして画像を選択（カメラロールでOK）
+    </label>
+    <img id="preview" class="preview" alt="">
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="card boardwrap" id="boardwrap">
+    <div style="font-weight:700;margin-bottom:4px;">読み取り結果</div>
+    <div class="hint" id="readhint">マスをタップで <b>床⇄穴</b> を切替。猫マスは長押しで移動できます。間違っていたら直してから「解く」を押してください。</div>
+    <div class="board" id="board"></div>
+    <div class="legend">
+      <span><i class="sw" style="background:linear-gradient(160deg,#d98a63,#cf7d56)"></i>床（塗る）</span>
+      <span><i class="sw" style="background:#b39ae8"></i>穴（通れない）</span>
+      <span><i class="sw" style="background:#f5c518"></i>ねこ</span>
+    </div>
+    <div class="row">
+      <button class="btn accent" id="solveBtn">解く</button>
+      <button class="btn ghost" id="resetBtn">最初から</button>
+    </div>
+  </div>
+
+  <div class="card solution" id="solution">
+    <div style="font-weight:700;">手順</div>
+    <div class="status ok" id="solveStatus"></div>
+    <div class="steps" id="steps"></div>
+    <div class="arrowtext" id="arrowtext"></div>
+  </div>
+
+  <details class="card" style="background:transparent;box-shadow:none;padding:6px 2px;">
+    <summary>うまく読めないとき</summary>
+    <p>盤面の外枠（白い線）がはっきり写っているスクショだと精度が上がります。読み取りがずれたら、マスを直接タップして修正できます。猫の向き表記は「右＝画面右へスライド」です。</p>
+  </details>
+</div>
+
+<canvas id="cv"></canvas>
+
+<script>
+(function(){
+"use strict";
+
+const N = 7; // grid size; auto-detected but defaults to 7
+let GRID = null;      // 2D array [row][col]: 'floor' | 'hole' | 'cat'
+let GRIDN = N;
+let dragCatMode = false;
+
+const $ = id => document.getElementById(id);
+const status = $("status");
+function setStatus(msg, cls){ status.textContent = msg; status.className = "status" + (cls?(" "+cls):""); }
+
+/* ---------------- Image analysis ---------------- */
+// Returns {n, grid} where grid[row][col] in {'floor','hole','cat'}; row0=top, col0=left.
+// Method (verified): locate the white play-field frame via long white runs,
+// then classify GN x GN cells by center color sampling.
+function analyze(img, GN){
+  GN = GN || N;
+  const cv = $("cv");
+  const maxW = 1000;
+  const scale = Math.min(1, maxW / img.naturalWidth);
+  const W = Math.round(img.naturalWidth*scale), H = Math.round(img.naturalHeight*scale);
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext("2d", {willReadFrequently:true});
+  ctx.drawImage(img,0,0,W,H);
+  const data = ctx.getImageData(0,0,W,H).data;
+  const at = (x,y)=>{ const i=(y*W+x)*4; return [data[i],data[i+1],data[i+2]]; };
+
+  const isWhite = p => p[0]>230 && p[1]>230 && p[2]>230;
+  // longest horizontal white run in a row
+  function rowRun(y){ let run=0,best=0; for(let x=0;x<W;x++){ if(isWhite(at(x,y))){run++; if(run>best)best=run;} else run=0; } return best; }
+  // longest vertical white run in a column within a y-band
+  function colRunBand(x,top,bot){ let run=0,best=0; for(let y=top;y<=bot;y++){ if(isWhite(at(x,y))){run++; if(run>best)best=run;} else run=0; } return best; }
+
+  // top & bottom border rows: long horizontal white runs
+  let top=-1, bot=-1; const thW=W*0.42;
+  for(let y=Math.floor(H*0.15); y<Math.floor(H*0.80); y++){ if(rowRun(y)>thW){ if(top<0)top=y; bot=y; } }
+
+  let x0,x1,y0,y1;
+  if(top>=0 && bot>top){
+    const thH=(bot-top)*0.5;
+    let left=-1,right=-1;
+    for(let x=0;x<W;x++){ if(colRunBand(x,top,bot)>thH){ if(left<0)left=x; right=x; } }
+    if(left<0 || right-left < W*0.3){ left=Math.floor(W*0.03); right=Math.floor(W*0.97); }
+    const fw=right-left, fh=bot-top;
+    x0=left+Math.round(fw*0.012); x1=right-Math.round(fw*0.012);
+    y0=top +Math.round(fh*0.012); y1=bot -Math.round(fh*0.012);
+  } else {
+    // fallback: central region
+    x0=Math.floor(W*0.05); x1=Math.floor(W*0.95);
+    y0=Math.floor(H*0.30); y1=Math.floor(H*0.66);
+  }
+
+  // classify cells
+  const isPurple = p => { const [r,g,b]=p; return b>200 && r>120 && r<212 && g>112 && g<192 && (b-g)>26 && (b-r)>2; };
+  const isYellow = p => { const [r,g,b]=p; return r>205 && g>148 && g<228 && b<128; };
+  const VB=[], HB=[];
+  for(let k=0;k<=GN;k++){ VB.push(x0+(x1-x0)*k/GN); HB.push(y0+(y1-y0)*k/GN); }
+  const grid=[];
+  for(let ri=0;ri<GN;ri++){
+    const row=[];
+    for(let ci=0;ci<GN;ci++){
+      const cx=(VB[ci]+VB[ci+1])/2, cy=(HB[ri]+HB[ri+1])/2;
+      const rad=Math.min(VB[ci+1]-VB[ci], HB[ri+1]-HB[ri])*0.33;
+      const step=Math.max(2,rad/8);
+      let pc=0,yc=0,tot=0;
+      for(let dy=-rad;dy<=rad;dy+=step)for(let dx=-rad;dx<=rad;dx+=step){
+        const x=Math.round(cx+dx), y=Math.round(cy+dy);
+        if(x<0||y<0||x>=W||y>=H) continue;
+        const p=at(x,y); tot++;
+        if(isPurple(p)) pc++; if(isYellow(p)) yc++;
+      }
+      let kind='floor';
+      if(yc/tot>0.10) kind='cat'; else if(pc/tot>0.5) kind='hole';
+      row.push({kind, p:pc/tot, y:yc/tot});
+    }
+    grid.push(row);
+  }
+  // exactly one cat = strongest yellow cell
+  let bestCat=null, bestY=0.08;
+  for(let ri=0;ri<GN;ri++)for(let ci=0;ci<GN;ci++){ if(grid[ri][ci].y>bestY){bestY=grid[ri][ci].y;bestCat=[ri,ci];} }
+  for(let ri=0;ri<GN;ri++)for(let ci=0;ci<GN;ci++){ if(grid[ri][ci].kind==='cat') grid[ri][ci].kind=(grid[ri][ci].p>0.5?'hole':'floor'); }
+  if(bestCat) grid[bestCat[0]][bestCat[1]].kind='cat';
+
+  return { n:GN, grid: grid.map(r=>r.map(c=>c.kind)) };
+}
+
+/* ---------------- Solver ----------------
+   Coordinate-free: works directly on row/col grid.
+   row 0 = top, col 0 = left. Directions: U,D,L,R (screen).
+   Strict one-stroke: cannot enter a hole, edge, or already-filled cell.
+   Goal: fill every floor cell (cat's start counts as filled).
+*/
+function solve(n, grid){
+  // map cells
+  const HOLE = (r,c)=> r<0||c<0||r>=n||c>=n || grid[r][c]==='hole';
+  let cat=null, target=0;
+  for(let r=0;r<n;r++)for(let c=0;c<n;c++){
+    if(grid[r][c]==='cat'){ cat=[r,c]; target++; }
+    else if(grid[r][c]==='floor') target++;
+  }
+  if(!cat) return {ok:false, reason:'cat'};
+  const DIRS = {U:[-1,0],D:[1,0],L:[0,-1],R:[0,1]};
+  const key=(r,c)=> r*n+c;
+
+  function slide(r,c,d,filled){
+    const [dr,dc]=DIRS[d]; const path=[];
+    while(true){
+      const nr=r+dr, nc=c+dc;
+      if(HOLE(nr,nc)) break;
+      if(filled.has(key(nr,nc))) break;
+      r=nr;c=nc; path.push([r,c]);
+    }
+    return {r,c,path};
+  }
+
+  let answer=null;
+  const visited = new Set(); // memo of dead states (cap)
+  let nodes=0, NODE_CAP=4_000_000;
+  function dfs(r,c,filled,moves){
+    if(answer) return;
+    if(filled.size===target){ answer=moves.slice(); return; }
+    if(++nodes>NODE_CAP) return;
+    for(const d in DIRS){
+      const s=slide(r,c,d,filled);
+      if(s.path.length===0) continue;
+      const added=[];
+      for(const [pr,pc] of s.path){ const k=key(pr,pc); if(!filled.has(k)){ filled.add(k); added.push(k);} }
+      dfs(s.r,s.c,filled,moves.concat(d));
+      for(const k of added) filled.delete(k);
+      if(answer) return;
+    }
+  }
+  const f0=new Set([key(cat[0],cat[1])]);
+  dfs(cat[0],cat[1],f0,[]);
+  if(answer) return {ok:true, moves:answer, cat, n, mode:'strict'};
+
+  // Fallback: allow passing through filled cells (stop only at wall).
+  function slide2(r,c,d){
+    const [dr,dc]=DIRS[d]; const path=[];
+    while(true){ const nr=r+dr,nc=c+dc; if(HOLE(nr,nc)) break; r=nr;c=nc; path.push([r,c]); }
+    return {r,c,path};
+  }
+  let ans2=null;
+  function dfs2(r,c,filled,moves,cap){
+    if(ans2) return;
+    if(filled.size===target){ ans2=moves.slice(); return; }
+    if(moves.length>=cap) return;
+    const opts=[];
+    for(const d in DIRS){
+      const s=slide2(r,c,d); if(!s.path.length) continue;
+      let gain=0; for(const[pr,pc]of s.path) if(!filled.has(key(pr,pc))) gain++;
+      opts.push({d,s,gain});
+    }
+    opts.sort((a,b)=>b.gain-a.gain);
+    for(const o of opts){
+      if(o.gain===0 && o.s.r===r && o.s.c===c) continue;
+      const added=[];
+      for(const[pr,pc]of o.s.path){const k=key(pr,pc); if(!filled.has(k)){filled.add(k);added.push(k);}}
+      dfs2(o.s.r,o.s.c,filled,moves.concat(o.d),cap);
+      for(const k of added) filled.delete(k);
+      if(ans2) return;
+    }
+  }
+  for(let cap=8;cap<=28 && !ans2;cap++){ dfs2(cat[0],cat[1],new Set([key(cat[0],cat[1])]),[],cap); }
+  if(ans2) return {ok:true, moves:ans2, cat, n, mode:'pass'};
+
+  return {ok:false, reason:'nosol', cat, n};
+}
+
+/* ---------------- UI rendering ---------------- */
+function renderBoard(){
+  const board=$("board");
+  board.style.gridTemplateColumns = `repeat(${GRIDN},1fr)`;
+  board.innerHTML="";
+  for(let r=0;r<GRIDN;r++){
+    for(let c=0;c<GRIDN;c++){
+      const k=GRID[r][c];
+      const el=document.createElement("div");
+      el.className="cell "+k;
+      el.dataset.r=r; el.dataset.c=c;
+      // x = col from right (N..1), y = row from bottom (N..1) — shown faintly
+      el.textContent = (GRIDN-c)+","+(GRIDN-r);
+      board.appendChild(el);
+    }
+  }
+}
+
+function bindBoard(){
+  const board=$("board");
+  let pressTimer=null;
+  board.addEventListener("click", e=>{
+    const cell=e.target.closest(".cell"); if(!cell) return;
+    const r=+cell.dataset.r, c=+cell.dataset.c;
+    if(GRID[r][c]==='cat') return;
+    GRID[r][c] = GRID[r][c]==='floor' ? 'hole' : 'floor';
+    clearSolution();
+    renderBoard();
+  });
+  // long-press to move cat
+  board.addEventListener("touchstart", e=>{
+    const cell=e.target.closest(".cell"); if(!cell) return;
+    pressTimer=setTimeout(()=>{
+      const r=+cell.dataset.r, c=+cell.dataset.c;
+      if(GRID[r][c]==='hole') return;
+      for(let i=0;i<GRIDN;i++)for(let j=0;j<GRIDN;j++) if(GRID[i][j]==='cat') GRID[i][j]='floor';
+      GRID[r][c]='cat'; clearSolution(); renderBoard();
+      if(navigator.vibrate) navigator.vibrate(20);
+    }, 450);
+  }, {passive:true});
+  board.addEventListener("touchend", ()=>clearTimeout(pressTimer));
+  board.addEventListener("touchmove", ()=>clearTimeout(pressTimer));
+}
+
+const ARROWS={U:"↑",D:"↓",L:"←",R:"→"};
+const JP={U:"上",D:"下",L:"左",R:"右"};
+
+function showSolution(res){
+  const sol=$("solution");
+  sol.style.display="block";
+  if(!res.ok){
+    $("solveStatus").className="status err";
+    $("solveStatus").textContent = res.reason==='cat'
+      ? "猫マスが見つかりません。盤面を直してください。"
+      : "この盤面では全マスを塗る手順が見つかりませんでした。障害物の読み取りがずれている可能性があります。マスを直して再挑戦してください。";
+    $("steps").innerHTML=""; $("arrowtext").innerHTML="";
+    return;
+  }
+  $("solveStatus").className="status ok";
+  $("solveStatus").textContent = (res.mode==='strict')
+    ? `クリア手順が見つかりました（${res.moves.length}手・同じマスを通りません）`
+    : `クリア手順（${res.moves.length}手・塗ったマスの上は通過します）`;
+  const steps=$("steps"); steps.innerHTML="";
+  res.moves.forEach((m,i)=>{
+    const d=document.createElement("div"); d.className="step";
+    d.innerHTML=`<span class="n">${i+1}</span>${ARROWS[m]}`;
+    steps.appendChild(d);
+  });
+  $("arrowtext").innerHTML = "<b>"+res.moves.map(m=>JP[m]).join(" → ")+"</b>";
+  // highlight path on board step-by-step preview: show full coverage
+  sol.scrollIntoView({behavior:"smooth", block:"nearest"});
+}
+
+function clearSolution(){ $("solution").style.display="none"; }
+
+/* ---------------- Wiring ---------------- */
+function loadImage(file){
+  if(!file){ return; }
+  setStatus("画像を読み込み中…");
+  const img=new Image();
+  img.onload=()=>{
+    $("preview").src=img.src; $("preview").style.display="block";
+    setStatus("盤面を解析中…");
+    setTimeout(()=>{
+      try{
+        const res=analyze(img);
+        GRIDN=res.n; GRID=res.grid;
+        // sanity: must have a cat
+        let hasCat=false; for(const row of GRID) for(const k of row) if(k==='cat') hasCat=true;
+        renderBoard();
+        $("boardwrap").style.display="block";
+        clearSolution();
+        if(!hasCat) setStatus("猫が自動検出できませんでした。マスを長押しして猫の位置を指定してください。","err");
+        else setStatus(GRIDN+"×"+GRIDN+" で読み取りました。ずれていればマスをタップで修正できます。","ok");
+        $("boardwrap").scrollIntoView({behavior:"smooth", block:"nearest"});
+      }catch(err){
+        console.error(err);
+        setStatus("解析に失敗しました。別のスクショで試してください。","err");
+      }
+    },30);
+  };
+  img.onerror=()=>setStatus("画像を読み込めませんでした。","err");
+  img.src=URL.createObjectURL(file);
+}
+
+$("file").addEventListener("change", e=>loadImage(e.target.files[0]));
+const drop=$("drop");
+["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("hot");}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("hot");}));
+drop.addEventListener("drop", e=>{ const f=e.dataTransfer.files[0]; if(f) loadImage(f); });
+
+$("solveBtn").addEventListener("click", ()=>{
+  if(!GRID) return;
+  $("solveBtn").disabled=true; $("solveBtn").textContent="計算中…";
+  setTimeout(()=>{
+    const res=solve(GRIDN, GRID);
+    showSolution(res);
+    $("solveBtn").disabled=false; $("solveBtn").textContent="解く";
+  },20);
+});
+
+$("resetBtn").addEventListener("click", ()=>{
+  GRID=null; $("boardwrap").style.display="none"; clearSolution();
+  $("preview").style.display="none"; $("file").value="";
+  setStatus("");
+});
+
+bindBoard();
+})();
+</script>
+</body>
+</html>
