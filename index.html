@@ -372,7 +372,7 @@ function renderBoard(){
 
 function bindBoard(){
   const board=$("board");
-  let pressTimer=null;
+  let pressTimer=null, startX=0, startY=0;
   board.addEventListener("click", e=>{
     const cell=e.target.closest(".cell"); if(!cell) return;
     const r=+cell.dataset.r, c=+cell.dataset.c;
@@ -384,6 +384,8 @@ function bindBoard(){
   // long-press to move cat
   board.addEventListener("touchstart", e=>{
     const cell=e.target.closest(".cell"); if(!cell) return;
+    const t=e.touches[0]; startX=t.clientX; startY=t.clientY;
+    clearTimeout(pressTimer);
     pressTimer=setTimeout(()=>{
       const r=+cell.dataset.r, c=+cell.dataset.c;
       if(GRID[r][c]==='hole') return;
@@ -392,8 +394,12 @@ function bindBoard(){
       if(navigator.vibrate) navigator.vibrate(20);
     }, 450);
   }, {passive:true});
+  // cancel only when the finger actually moves (ignore tiny jitter)
+  board.addEventListener("touchmove", e=>{
+    const t=e.touches[0]; if(!t) return;
+    if(Math.abs(t.clientX-startX)>12 || Math.abs(t.clientY-startY)>12) clearTimeout(pressTimer);
+  }, {passive:true});
   board.addEventListener("touchend", ()=>clearTimeout(pressTimer));
-  board.addEventListener("touchmove", ()=>clearTimeout(pressTimer));
 }
 
 const ARROWS={U:"↑",D:"↓",L:"←",R:"→"};
